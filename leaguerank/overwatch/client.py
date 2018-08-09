@@ -2,25 +2,24 @@ from collections import namedtuple
 
 import requests
 
+from .codes import stats
+
 try:
     from bs4 import BeautifulSoup
 except ImportError:
     from BeautifulSoup import BeautifulSoup
 
-from .codes import by_hero
 
-
-Metric = namedtuple('Metric', ['name', 'hero', 'value'])
+Metric = namedtuple('Metric', ['hero', 'value'])
 
 
 class MetricByHero(object):
-    def __init__(self, name, data):
+    def __init__(self, data, parser):
         self.data = []
         for hero in data:
             self.data.append(Metric(
-                name=name,
                 hero=hero.find('div', {'class': 'title'}).text,
-                value=hero.find('div', {'class': 'description'}).text
+                value=parser(hero.find('div', {'class': 'description'}).text)
             ))
 
     def __iter__(self):
@@ -50,11 +49,24 @@ class OverwatchProfile(object):
 
     def metrics(self):
         metrics = {}
-        for key in by_hero:
-            metrics[key] = list(MetricByHero(key, self.soup.find(
-                "div",
-                {"data-category-id": by_hero[key]}
-                ).find_all("div", {"class": "bar-text"})))
+        for group in stats:
+            metrics[group] = {}
+            for key in stats[group]:
+                metrics[group][key] = list(
+                    MetricByHero(
+                        self.soup.find(
+                            "div",
+                            {"id": stats[group][key]['parent_id']}
+                        ).find(
+                            "div",
+                            {"data-category-id": stats[group][key]['selector']}
+                        ).find_all(
+                            "div",
+                            {"class": "bar-text"}
+                        ),
+                        stats[group][key].get('value_parser', lambda x: x)
+                    )
+                )
         return metrics
 
     def load(self):
