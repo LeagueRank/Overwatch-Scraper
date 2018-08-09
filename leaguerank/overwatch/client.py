@@ -3,6 +3,7 @@ from collections import namedtuple
 import requests
 
 from .codes import stats
+from .utils import parse_timespan, parse_percent
 
 try:
     from bs4 import BeautifulSoup
@@ -10,20 +11,7 @@ except ImportError:
     from BeautifulSoup import BeautifulSoup
 
 
-Metric = namedtuple('Metric', ['hero', 'value'])
-
-
-class MetricByHero(object):
-    def __init__(self, data, parser):
-        self.data = []
-        for hero in data:
-            self.data.append(Metric(
-                hero=hero.find('div', {'class': 'title'}).text,
-                value=parser(hero.find('div', {'class': 'description'}).text)
-            ))
-
-    def __iter__(self):
-        return self.data.__iter__()
+Metric = namedtuple('Metric', ['label', 'value'])
 
 
 class OverwatchProfile(object):
@@ -47,27 +35,67 @@ class OverwatchProfile(object):
             "p", {"class": "masthead-permission-level-text"}
             ).text == "Private Profile"
 
-    def metrics(self):
-        metrics = {}
-        for group in stats:
-            metrics[group] = {}
-            for key in stats[group]:
-                metrics[group][key] = list(
-                    MetricByHero(
-                        self.soup.find(
-                            "div",
-                            {"id": stats[group][key]['parent_id']}
-                        ).find(
-                            "div",
-                            {"data-category-id": stats[group][key]['selector']}
-                        ).find_all(
-                            "div",
-                            {"class": "bar-text"}
-                        ),
-                        stats[group][key].get('value_parser', lambda x: x)
-                    )
-                )
-        return metrics
+    def metric_lookup(self, guid):
+        return self.soup.find('option', {'value': guid}).text
+
+    def fuzzy_parse(self, s):
+        if s.find('%') > -1:
+            return parse_percent(s)
+        if s.find(' ') > -1 or s.find(':') > -1:
+            return parse_timespan(s)
+        if s.find('-') > -1:
+            return 0
+        if s.find(',') > -1:
+            return float(s.replace(',', ''))
+
+        return float(s)
+
+    def portrait(self):
+        return self.soup.find('img', {'class': 'player-portrait'})['src']
+
+    def rank(self):
+        return int(self.soup.find('div', {'class': 'competitive-rank'}).text)
+
+    def endorsement_level(self):
+        return int(self.soup.find('div', {'class': 'endorsement-level'}).text)
+
+    def hero_metrics(self):
+        data = {}
+        for category in self.soup.find_all(
+                                    'div', {'data-js': 'career-category'}):
+            d1 = {}
+            for metric in category.find_all(
+                                    'div', {'data-group-id': 'comparisons'}):
+                name = self.metric_lookup(metric['data-category-id'])
+                d1[name] = []
+                for value in metric.find_all('div', {'class': 'bar-text'}):
+                    d1[name].append(Metric(
+                        label=value.find('div', {'class': 'title'}).text,
+                        value=self.fuzzy_parse(
+                            value.find('div', {'class': 'description'}).text
+                        )
+                    ))
+            data[category['data-mode']] = d1
+        return data
+
+    def stats_metrics(self):
+        data = {}
+        for category in self.soup.find_all(
+                                    'div', {'data-js': 'career-category'}):
+            d1 = {}
+            for metric in category.find_all(
+                                    'div', {'data-group-id': 'stats'}):
+                name = self.metric_lookup(metric['data-category-id'])
+                d1[name] = []
+                for tbody in metric.find_all('tbody'):
+                    for value in tbody.find_all('tr'):
+                        (label, val) = value.find_all('td')
+                        d1[name].append(Metric(
+                            label=label.text,
+                            value=self.fuzzy_parse(val.text)
+                        ))
+            data[category['data-mode']] = d1
+        return data
 
     def load(self):
         self.html = requests.get(self.profile_url()).text.encode('utf-8')
