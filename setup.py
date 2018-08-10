@@ -9,7 +9,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='python-overwatchprofile-scraper',
-    version='1.0.3',
+    version='1.0.4',
     description='A python Overwatch Profile scraper that doesn\'t suck',
     long_description=long_description,
     long_description_content_type='text/markdown',
