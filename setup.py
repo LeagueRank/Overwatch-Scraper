@@ -9,7 +9,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='python-overwatchprofile-scraper',
-    version='1.0.4',
+    version='1.0.5',
     description='A python Overwatch Profile scraper that doesn\'t suck',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -21,6 +21,11 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 2'
+    ],
+    install_requires=[
+        'bs4',
+        'requests',
+        'requests[security]'
     ],
     packages=find_packages(exclude=['contrib', 'docs', 'tests'])
 )
