@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import requests
 
-from .codes import stats
+from .errors import *
 from .utils import parse_timespan, parse_percent
 
 try:
@@ -60,6 +60,8 @@ class OverwatchProfile(object):
         return int(self.soup.find('div', {'class': 'endorsement-level'}).text)
 
     def hero_metrics(self):
+        if self.is_private():
+            raise PrivateProfile()
         data = {}
         for category in self.soup.find_all(
                                     'div', {'data-js': 'career-category'}):
@@ -76,9 +78,13 @@ class OverwatchProfile(object):
                         )
                     ))
             data[category['data-mode']] = d1
+        if not len(data.keys()):
+            raise NoData()
         return data
 
     def stats_metrics(self):
+        if self.is_private():
+            raise PrivateProfile()
         data = {}
         for category in self.soup.find_all(
                                     'div', {'data-js': 'career-category'}):
@@ -95,6 +101,8 @@ class OverwatchProfile(object):
                             value=self.fuzzy_parse(val.text)
                         ))
             data[category['data-mode']] = d1
+        if not len(data.keys()):
+            raise NoData()
         return data
 
     def load(self):
