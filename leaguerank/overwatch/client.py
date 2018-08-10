@@ -50,6 +50,13 @@ class OverwatchProfile(object):
 
         return float(s)
 
+    def ascii_hero(self, s):
+        if s.find('Torb') > -1:
+            return 'Torbjorn'
+        if s.find('cio') > -1:
+            return 'Lucio'
+        return s
+
     def portrait(self):
         return self.soup.find('img', {'class': 'player-portrait'})['src']
 
@@ -72,7 +79,9 @@ class OverwatchProfile(object):
                 d1[name] = []
                 for value in metric.find_all('div', {'class': 'bar-text'}):
                     d1[name].append(Metric(
-                        label=value.find('div', {'class': 'title'}).text,
+                        label=self.ascii_hero(
+                            value.find('div', {'class': 'title'}).text
+                        ),
                         value=self.fuzzy_parse(
                             value.find('div', {'class': 'description'}).text
                         )
@@ -91,7 +100,9 @@ class OverwatchProfile(object):
             d1 = {}
             for metric in category.find_all(
                                     'div', {'data-group-id': 'stats'}):
-                name = self.metric_lookup(metric['data-category-id'])
+                name = self.ascii_hero(
+                    self.metric_lookup(metric['data-category-id'])
+                )
                 d1[name] = []
                 for tbody in metric.find_all('tbody'):
                     for value in tbody.find_all('tr'):
